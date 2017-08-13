@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"  
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:hz="http://www.hazelcast.com/schema/spring"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
+		http://www.hazelcast.com/schema/spring http://www.hazelcast.com/schema/spring/hazelcast-spring-3.6.xsd">
+
+	<context:property-placeholder ignore-unresolvable="true" location="file:${xdm.config.path}/admin.properties" />
+	<context:annotation-config />
+ 
+	<!--bean id="xdmFactory" class="com.bagri.xdm.cache.hazelcast.impl.KeyFactoryImpl" /-->
+
+	<bean id="xqDataSource" class="com.bagri.xqj.BagriXQDataSource">
+	    <property name="properties">
+		    <props>
+				<prop key="address">${xdm.schema.members}</prop>
+				<prop key="schema">${xdm.schema.name}</prop>
+				<!--prop key="xdm.client.fetchSize">${xdm.client.fetchSize}</prop-->
+				<prop key="query.processor">com.bagri.xquery.saxon.XQProcessorClient</prop>
+				<prop key="xdm.repository">com.bagri.xdm.client.hazelcast.impl.SchemaRepositoryImpl</prop>
+			</props>
+		</property>
+	</bean>
+
+	<bean id="invocationStatsAggregator" class="com.bagri.xdm.cache.hazelcast.stats.InvocationStatsAggregator"/>
+
+	<bean id="usageStatsAggregator" class="com.bagri.xdm.cache.hazelcast.stats.UsageStatsAggregator"/>
+
+	<bean id="clientManager" class="com.bagri.xdm.cache.hazelcast.management.ClientManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+	</bean>
+
+	<bean id="docManager" class="com.bagri.xdm.cache.hazelcast.management.DocumentManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<!--property name="statsAggregator" ref="invocationStatsAggregator"/-->
+	</bean>
+
+	<bean id="indexManager" class="com.bagri.xdm.cache.hazelcast.management.IndexManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<property name="statsAggregator" ref="usageStatsAggregator"/>
+	</bean>
+
+	<bean id="triggerManager" class="com.bagri.xdm.cache.hazelcast.management.TriggerManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<property name="statsAggregator" ref="usageStatsAggregator"/>
+	</bean>
+
+	<bean id="modelManager" class="com.bagri.xdm.cache.hazelcast.management.ModelManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+	</bean>
+
+	<bean id="queryManager" class="com.bagri.xdm.cache.hazelcast.management.QueryManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<property name="statsAggregator" ref="invocationStatsAggregator"/>
+		<property name="fetchSize" value="${xdm.client.fetchSize}"/>
+		<property name="queryTimeout" value="${xqj.schema.queryTimeout}"/>
+	</bean>
+
+	<bean id="transManager" class="com.bagri.xdm.cache.hazelcast.management.TransactionManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<property name="statsAggregator" ref="invocationStatsAggregator"/>
+	</bean>
+
+	<!--bean id="popManager" class="com.bagri.xdm.cache.hazelcast.management.PopulationManagement">
+		<constructor-arg value="${xdm.schema.name}" />
+		<property name="hzInstance" ref="hzInstance"/>
+	</bean-->
+
+</beans>

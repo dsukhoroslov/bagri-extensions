@@ -1,2 +1,2 @@
 # bagri-extensions
-extensions for bagri project
+Extension modules for Bagri project
