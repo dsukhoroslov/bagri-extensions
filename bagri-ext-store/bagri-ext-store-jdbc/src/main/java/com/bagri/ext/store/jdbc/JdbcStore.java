@@ -125,7 +125,7 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
     	for (String tabName: tables) {
 	    	int idx = 0;
 	    	List<String> pkCols = tableKeys.get(tabName);
-	    	StringBuffer query = new StringBuffer("select ");
+	    	StringBuilder query = new StringBuilder("select ");
 	    	for (String col: pkCols) {
 	    		if (idx > 0) {
 	    			query.append(", ");
@@ -368,10 +368,10 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 				Map<String, ColumnData> allCols = new HashMap<>();
 
 				int idx = 0;
-				StringBuffer bufSelect = new StringBuffer("select ");
-				StringBuffer bufInsert = new StringBuffer("insert into ");
-				StringBuffer bufInsertVal = new StringBuffer(" values(");
-				StringBuffer bufUpdate = new StringBuffer("update ");
+				StringBuilder bufSelect = new StringBuilder("select ");
+				StringBuilder bufInsert = new StringBuilder("insert into ");
+				StringBuilder bufInsertVal = new StringBuilder(" values(");
+				StringBuilder bufUpdate = new StringBuilder("update ");
 				bufInsert.append(tabName).append("(");
 				bufUpdate.append(tabName).append(" set ");
 				rs = meta.getColumns(null, null, tabName, null);
@@ -401,7 +401,7 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 					tableKeys.remove(tabName);
 				} else {
 					bufSelect.append(" from ").append(tabName).append(" where ");
-					StringBuffer bufDelete = new StringBuffer("delete from ");
+					StringBuilder bufDelete = new StringBuilder("delete from ");
 					bufDelete.append(tabName).append(" where ");
 					bufUpdate.append(" where ");
 					if (pkCols.size() == 1) {
@@ -468,7 +468,7 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 	}
 
 	private String buildUri(String tableName, Map<String, Object> document) { 
-		StringBuffer buff = new StringBuffer(tableName);
+		StringBuilder buff = new StringBuilder(tableName);
 		for (String key: tableKeys.get(tableName)) {
 			Object value = document.get(key);
 			if (value != null) {
@@ -602,7 +602,7 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 		}
 		
 		protected String buildUri(ResultSet rs) throws SQLException {
-			StringBuffer buff = new StringBuffer(tableName);
+			StringBuilder buff = new StringBuilder(tableName);
 			for (String col: keyCols) {
 				buff.append(dilimeter);
 				buff.append(rs.getString(col));

@@ -98,7 +98,7 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 		for (String table: tables.keySet()) {
 			int idx = 0;
 			List<String> keys = tables.get(table);
-			StringBuffer select = new StringBuffer("select token(");
+			StringBuilder select = new StringBuilder("select token(");
 			for (String key: keys) {
 				if (idx > 0) {
 					select.append(", ");
