@@ -1,6 +1,7 @@
 package com.bagri.ext.store.hdfs;
 
 import static com.bagri.core.api.TransactionManagement.TX_INIT;
+import static com.bagri.core.Constants.pn_document_headers;
 import static com.bagri.core.Constants.pn_schema_format_default;
 
 import java.io.ByteArrayOutputStream;
@@ -10,6 +11,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -26,11 +28,13 @@ import org.slf4j.LoggerFactory;
 
 import com.bagri.core.DocumentKey;
 import com.bagri.core.api.BagriException;
+import com.bagri.core.api.DocumentAccessor;
 import com.bagri.core.server.api.DocumentManagement;
 import com.bagri.core.server.api.DocumentStore;
 import com.bagri.core.server.api.PopulationManagement;
 import com.bagri.core.server.api.SchemaRepository;
 import com.bagri.core.server.api.impl.DocumentStoreBase;
+import com.bagri.server.hazelcast.impl.DocumentManagementImpl;
 import com.bagri.core.model.Document;
 
 public class HadoopStore extends DocumentStoreBase implements DocumentStore {
@@ -203,7 +207,7 @@ public class HadoopStore extends DocumentStoreBase implements DocumentStore {
 	        }
         	
 	        FileStatus fs = fileSystem.getFileStatus(path);
-			DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
+			DocumentManagementImpl docManager = (DocumentManagementImpl) repo.getDocumentManagement(); 
 			return docManager.createDocument(key, uri, content, dataFormat, new Date(fs.getModificationTime()), 
 					fs.getOwner(), TX_INIT, null, true);
 		} catch (Exception ex) {
@@ -264,10 +268,12 @@ public class HadoopStore extends DocumentStoreBase implements DocumentStore {
 			// update existing document - put a new version
 		}
     	
-    	String content;
-    	try {
-			DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
-    		content = docManager.getDocumentAsString(key, null);
+		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
+		String content;
+		try {
+			Properties props = new Properties();
+			props.setProperty(pn_document_headers, String.valueOf(DocumentAccessor.HDR_CONTENT));
+			content = docManager.getDocument(key, props).getContent();
 
             FSDataOutputStream out = fileSystem.create(new Path(uri), true);
             out.writeChars(content);

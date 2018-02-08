@@ -25,11 +25,10 @@
             <groupId>com.bagridb</groupId>
             <artifactId>bagri-core</artifactId>
         </dependency>
-        <!--dependency>
+        <dependency>
             <groupId>com.bagridb</groupId>
             <artifactId>bagri-server-hazelcast</artifactId>
-            <scope>runtime</scope>
-        </dependency-->
+        </dependency>
 
         <dependency>
             <groupId>com.datastax.cassandra</groupId>

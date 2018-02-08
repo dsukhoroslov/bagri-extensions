@@ -1,5 +1,6 @@
 package com.bagri.ext.store.cassandra;
 
+import static com.bagri.core.Constants.pn_document_headers;
 import static com.bagri.core.Constants.pn_schema_format_default;
 import static com.bagri.core.api.TransactionManagement.TX_INIT;
 import static com.bagri.core.api.TransactionManagement.TX_NO;
@@ -13,12 +14,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.bagri.core.DocumentKey;
 import com.bagri.core.api.BagriException;
+import com.bagri.core.api.DocumentAccessor;
 import com.bagri.core.server.api.DocumentManagement;
 import com.bagri.core.server.api.DocumentStore;
 import com.bagri.core.server.api.PopulationManagement;
@@ -248,7 +251,11 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
 		String content;
 		try {
-			content = docManager.getDocumentAsString(key, null);
+			Properties props = new Properties();
+			props.setProperty(pn_document_headers, String.valueOf(DocumentAccessor.HDR_CONTENT));
+			content = docManager.getDocument(key, props).getContent();
+			
+			// now we should store content in Cassandra?
 		} catch (BagriException ex) {
 			return ex;
 		}

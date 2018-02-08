@@ -1,5 +1,6 @@
 package com.bagri.ext.store.mongo;
 
+import static com.bagri.core.Constants.pn_document_headers;
 import static com.bagri.core.Constants.pn_schema_format_default;
 import static com.bagri.core.api.TransactionManagement.TX_INIT;
 import static com.bagri.core.api.TransactionManagement.TX_NO;
@@ -9,6 +10,7 @@ import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Filters.in;
 import static com.mongodb.client.model.Projections.include;
 
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,6 +18,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.bson.json.JsonWriterSettings;
 import org.bson.types.ObjectId;
@@ -24,11 +27,13 @@ import org.slf4j.LoggerFactory;
 
 import com.bagri.core.DocumentKey;
 import com.bagri.core.api.BagriException;
+import com.bagri.core.api.DocumentAccessor;
 import com.bagri.core.server.api.DocumentManagement;
 import com.bagri.core.server.api.DocumentStore;
 import com.bagri.core.server.api.PopulationManagement;
 import com.bagri.core.server.api.SchemaRepository;
 import com.bagri.core.server.api.impl.DocumentStoreBase;
+import com.bagri.server.hazelcast.impl.DocumentManagementImpl;
 import com.bagri.core.model.Document;
 import com.bagri.support.util.XMLUtils;
 
@@ -218,9 +223,9 @@ public class MongoStore extends DocumentStoreBase implements DocumentStore {
 		}
 
 		String owner = "admin";
+   		// how can we get doc's owner?
+		DocumentManagementImpl docManager = (DocumentManagementImpl) repo.getDocumentManagement(); 
    		try {
-   	   		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement();
-   	   		// how can we get doc's owner?
    			return docManager.createDocument(key, mParts[0], content, dataFormat, creDate, owner, TX_INIT, clns, true);
 		} catch (BagriException ex) {
 			logger.error("loadDocument.error", ex);
@@ -282,7 +287,9 @@ public class MongoStore extends DocumentStoreBase implements DocumentStore {
 		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
 		String content;
 		try {
-			content = docManager.getDocumentAsString(key, null);
+			Properties props = new Properties();
+			props.setProperty(pn_document_headers, String.valueOf(DocumentAccessor.HDR_CONTENT));
+			content = docManager.getDocument(key, props).getContent();
 		} catch (BagriException ex) {
 			return ex;
 		}

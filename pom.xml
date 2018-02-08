@@ -83,9 +83,9 @@
         <jdk.version>1.7</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <bagri.version>1.1.1</bagri.version>
+        <bagri.version>1.2.0</bagri.version>
         <spring.version>4.2.5.RELEASE</spring.version>
-        <hazelcast.version>3.8.2</hazelcast.version>
+        <hazelcast.version>3.8.7</hazelcast.version>
 
         <json.version>1.0.4</json.version>
         <jackson.version>2.5.2</jackson.version>
@@ -137,6 +137,11 @@
             <dependency>
                 <groupId>com.bagridb</groupId>
                 <artifactId>bagri-xqj</artifactId>
+                <version>${bagri.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bagridb</groupId>
+                <artifactId>bagri-server-hazelcast</artifactId>
                 <version>${bagri.version}</version>
             </dependency>
 

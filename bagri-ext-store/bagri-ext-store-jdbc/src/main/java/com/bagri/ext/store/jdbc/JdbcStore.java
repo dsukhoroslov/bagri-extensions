@@ -1,5 +1,6 @@
 package com.bagri.ext.store.jdbc;
 
+import static com.bagri.core.Constants.pn_document_headers;
 import static com.bagri.core.Constants.pn_schema_format_default;
 import static com.bagri.core.api.TransactionManagement.TX_INIT;
 import static com.bagri.core.api.TransactionManagement.TX_NO;
@@ -35,11 +36,13 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 import com.bagri.core.DocumentKey;
 import com.bagri.core.api.BagriException;
+import com.bagri.core.api.DocumentAccessor;
 import com.bagri.core.server.api.DocumentManagement;
 import com.bagri.core.server.api.DocumentStore;
 import com.bagri.core.server.api.PopulationManagement;
 import com.bagri.core.server.api.SchemaRepository;
 import com.bagri.core.server.api.impl.DocumentStoreBase;
+import com.bagri.server.hazelcast.impl.DocumentManagementImpl;
 import com.bagri.core.model.Document;
 import com.bagri.support.util.XMLUtils;
 
@@ -243,7 +246,9 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement(); 
 		Map<String, Object> content;
 		try {
-			content = docManager.getDocumentAsMap(key, null);
+			Properties props = new Properties();
+			props.setProperty(pn_document_headers, String.valueOf(DocumentAccessor.HDR_CONTENT));
+			content = docManager.getDocument(key, props).getContent();
 		} catch (BagriException ex) {
 			logger.error("storeDocument.error;", ex);
 			throw new RuntimeException(ex);
@@ -644,12 +649,12 @@ public class JdbcStore extends DocumentStoreBase implements DocumentStore {
 			String owner = dataSource.getUsername();
 			// can we get data of document creation somehow??
 			Date creDate = new Date();
+			DocumentManagementImpl docManager = (DocumentManagementImpl) repo.getDocumentManagement(); 
 	   		try {
-	   	   		DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement();
-	   	   		Document doc = docManager.createDocument(key, uri, content, dataFormat, creDate, owner, TX_INIT, clns, true); 
+	   			Document doc = docManager.createDocument(key, uri, content, dataFormat, creDate, owner, TX_INIT, clns, true);
 		   		entries.put(key, doc);
 			} catch (BagriException ex) {
-				logger.error("loadDocument.error", ex);
+				logger.error("processRow.error", ex);
 				// TODO: notify popManager about this?!
 			}
 		}
