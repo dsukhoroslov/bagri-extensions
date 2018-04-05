@@ -27,6 +27,7 @@ import com.bagri.core.server.api.DocumentStore;
 import com.bagri.core.server.api.PopulationManagement;
 import com.bagri.core.server.api.SchemaRepository;
 import com.bagri.core.server.api.impl.DocumentStoreBase;
+import com.bagri.server.hazelcast.impl.DocumentManagementImpl;
 import com.bagri.core.model.Document;
 import com.bagri.support.util.XMLUtils;
 import com.datastax.driver.core.Cluster;
@@ -43,7 +44,7 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
     private Cluster cluster;
     private Session session;
     
-    private Map<String, List<String>> tables = new HashMap<>();
+    private Map<String, CassandraMetaData> tables = new HashMap<>();
     
 	/**
 	 * {@inheritDoc}
@@ -99,19 +100,8 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 		List<String> errTabs = new ArrayList<>();
 		Map<DocumentKey, String> keyMap = new HashMap<>();
 		for (String table: tables.keySet()) {
-			int idx = 0;
-			List<String> keys = tables.get(table);
-			StringBuilder select = new StringBuilder("select token(");
-			for (String key: keys) {
-				if (idx > 0) {
-					select.append(", ");
-				}
-				select.append(key);
-				idx++;
-			}
-			select.append(") from ");
-			select.append(table);
-			String stmt = select.toString();
+			CassandraMetaData cmd = tables.get(table);
+			String stmt = cmd.selectKeys;
 			logger.debug("loadAllDocumentKeys; select: {}", stmt);
 			
 			try {
@@ -146,7 +136,7 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 	 */
 	@Override
 	public Map<DocumentKey, Document> loadAllDocuments(Collection<DocumentKey> keys) {
-		logger.info("loadAllDocuments.enter; got {} keys", keys.size());
+		logger.debug("loadAllDocuments.enter; got {} keys", keys.size());
 		SchemaRepository repo = getRepository();
 		Map<DocumentKey, Document> entries = new HashMap<>(keys.size());
 		for (DocumentKey key: keys) {
@@ -164,7 +154,7 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 	 */
 	@Override
 	public Document loadDocument(DocumentKey key) {
-		logger.info("loadDocument.enter; got key {}", key);
+		logger.debug("loadDocument.enter; got key {}", key);
 		Document doc = loadDocumentInternal(getRepository(), key);
 		logger.debug("loadDocument.exit; returning document {}", doc);
 		return doc;
@@ -179,22 +169,38 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
     		return null;
     	}
     	String[] mParts = getMappingParts(keyMap);
+    	CassandraMetaData cmd = tables.get(mParts[1]);
+    	if (cmd == null) {
+    		logger.info("loadDocumentInternal; no metadata found for key: {}", keyMap);
+    		return null;
+    	}
+		logger.debug("loadDocumentInternal; got key to load: {}; map: {}; meta: {}", key, keyMap, cmd);
     	
     	int[] clns = null;
-    	com.bagri.core.system.Collection xcl = repo.getSchema().getCollection(mParts[1]);
+    	String[] tabParts = mParts[1].split("\\.");
+    	com.bagri.core.system.Collection xcl = repo.getSchema().getCollection(tabParts[1]);
     	if (xcl != null) {
     		clns = new int[] {xcl.getId()};
     	}
 
-		//String owner = "admin";
-   		//try {
-   	   	//	DocumentManagement docManager = (DocumentManagement) repo.getDocumentManagement();
-   	   		// how can we get doc's owner?
-   		//	return docManager.createDocument(key, mParts[0], content, dataFormat, creDate, owner, TX_INIT, clns, true);
-		//} catch (BagriException ex) {
-		//	logger.error("loadDocument.error", ex);
-			// TODO: notify popManager about this?!
-		//}
+    	String token = mParts[0];
+		ResultSet rs = session.execute(cmd.select, new Long(token));
+		Iterator<Row> itr = rs.iterator();
+		if (itr.hasNext()) {
+			Row row = itr.next();
+			String content = row.getString(0);
+		    logger.debug("loadDocumentInternal; content: {}", content);
+		    
+			String owner = "admin";
+	   		// how can we get doc's owner and creation date?
+			DocumentManagementImpl docManager = (DocumentManagementImpl) repo.getDocumentManagement();
+			try {
+				return docManager.createDocument(key, token, content, df_json, new Date(), owner, TX_INIT, clns, true);
+			} catch (BagriException ex) {
+				logger.error("loadDocumentInternal.error", ex);
+				// TODO: notify popManager about this?!
+			}
+		}
 		return null;
 	}
     	
@@ -301,7 +307,6 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 	
 	private int initMetadata(String keyspace, String[] tabNames) {
 		logger.info("initMetadata; keyspace: {}; tables: {}", keyspace, tabNames);
-		//size_estimates
 		if (tabNames.length > 0) {
 			for (String table: tabNames) {
 				TableMetadata tabMeta = cluster.getMetadata().getKeyspace(keyspace).getTable(table);
@@ -322,8 +327,9 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 		for (ColumnMetadata col: table.getPartitionKey()) {
 			keys.add(col.getName());
 		}
-		tables.put(table.getKeyspace().getName() + "." + table.getName(), keys);
-		logger.info("addMetadata.exit; table: {}; keys: {}", table, keys);
+		String tabName = table.getKeyspace().getName() + "." + table.getName();
+		tables.put(tabName, new CassandraMetaData(tabName, keys));
+		logger.debug("addMetadata.exit; table: {}; keys: {}", table, keys);
 	}
 	
 	private String getMappingKey(String id, String cln) {
@@ -345,6 +351,42 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 			}
 		}
 		return null;
+	}
+	
+	private class CassandraMetaData {
+		
+		//private List<String> keys;
+		private String select;
+		private String selectKeys;
+		
+		CassandraMetaData(String table, List<String> keys) {
+			//this.keys = keys;
+			init(table, keys);
+		}
+		
+		private void init(String table, List<String> keys) {
+			
+			StringBuilder selBuff = new StringBuilder("select JSON * from ");
+			selBuff.append(table);
+			selBuff.append(" where token("); 
+			StringBuilder selKeyBuff = new StringBuilder("select token(");
+			int idx = 0;
+			for (String key: keys) {
+				if (idx > 0) {
+					selBuff.append(", ");
+					selKeyBuff.append(", ");
+				}
+				selBuff.append(key);
+				selKeyBuff.append(key);
+				idx++;
+			}
+			selBuff.append(") = ?");
+			this.select = selBuff.toString();
+			selKeyBuff.append(") from ");
+			selKeyBuff.append(table);
+			this.selectKeys = selKeyBuff.toString();
+		}
+		
 	}
 
 }
