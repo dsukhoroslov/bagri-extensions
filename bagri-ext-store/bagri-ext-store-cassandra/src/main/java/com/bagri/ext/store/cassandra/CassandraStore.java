@@ -11,10 +11,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +38,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.TableMetadata;
+import com.datastax.driver.core.TokenRange;
 
 public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 	
@@ -81,6 +84,14 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 		cluster.close();
 	}
 	
+    private Set<TokenRange> unwrapTokenRanges(Set<TokenRange> wrappedRanges) {
+        HashSet<TokenRange> tokenRanges = new HashSet<TokenRange>();
+        for (TokenRange tokenRange : wrappedRanges) {
+            tokenRanges.addAll(tokenRange.unwrap());
+        }
+        return tokenRanges;
+    }
+    
 	/**
 	 * {@inheritDoc}
 	 */
@@ -93,8 +104,8 @@ public class CassandraStore extends DocumentStoreBase implements DocumentStore {
 			return null;
 		}
 
-		logger.info("loadAllDocumentKeys; partitioner: {}; ring size: {}", cluster.getMetadata().getPartitioner(),
-				cluster.getMetadata().getTokenRanges().size());
+		logger.info("loadAllDocumentKeys; partitioner: {}; ring size: {}; tokens: {}", cluster.getMetadata().getPartitioner(),
+				cluster.getMetadata().getTokenRanges().size(), unwrapTokenRanges(cluster.getMetadata().getTokenRanges()));
 		session = cluster.connect();
 
 		List<String> errTabs = new ArrayList<>();
